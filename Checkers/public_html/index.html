@@ -1,16 +1,830 @@
 <!DOCTYPE html>
-<!--
-To change this license header, choose License Headers in Project Properties.
-To change this template file, choose Tools | Templates
-and open the template in the editor.
--->
+
 <html>
     <head>
-        <title>TODO supply a title</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>A game of checkers</title>
+        <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans" />
+        <style>
+            body{
+                width: 100%;
+                height: 100%;
+                background-color: white;
+                font-family: "Open Sans","Helvetica";
+            }
+            #board{
+                margin: auto;
+                width: 41vw;
+                height: 41vw;
+                border: 3px inset #333;
+                border-radius: 3px;
+                padding: 0;
+                border-top-width: 7px;
+                border-left-width: 7px;
+            }
+            .tile{
+                width:5vw;
+                height:5vw;
+                margin-left:-1px;
+                margin-top:-4px;
+                border: 1px solid #333;
+                display: inline-block;
+                background-color: #fffdf5;
+            }
+            .tile.black{
+                background-color: #333;
+                    border: 1px solid #fff;
+            }
+            .piece{
+                width: 3vw;
+                height: 3vw;
+                border-radius: 3vw;
+                border: 1px solid #000;
+                margin: auto;
+                margin-top: 16%;
+                background-color: #af4040;
+            }
+            
+            .piece.black{
+                background-color: #797373;
+            }
+            .tile.black.validEnd{
+                background-color: #9ed7f3;
+            }
+            .tile.black.validStep{
+                
+                background-color: rgba(158, 215, 243, 0.26);
+            }
+            .tile.black.validAttack{
+                background-color: #ef8132;
+            }
+            .header{
+                color: #fff;
+                width: 35%;
+                display: inline-block;
+            }
+            #blackHeader{
+                background-color: #797373;
+                border: 1px solid #6f6060;
+                padding-right: 5%;
+                text-align: right;
+            }
+            #redHeader{
+                background-color: #af4040;
+                border: 1px solid #bd3232;
+                padding-left: 5%;
+            }
+            #clock{
+                width: 19%;
+                display: inline-block;
+                text-align: center;
+                color: #333;
+                border-top: 1px solid #797373;
+                border-bottom: 1px solid #af4040;
+                margin-left: -5px;
+                margin-right: -5px;
+            }
+            #clock, .header, #announcement{
+                font-weight: bold;
+                font-size: 50px;
+                margin-bottom: 5px;
+                margin-top: 5px;
+            }
+            .piece.king{
+                background-image: url("img/crown.png");
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: contain;
+                border: 1px solid #fff;
+            }
+            .bench{
+                width: 9%;
+                height: 41vw;
+                background-color: #a56443;
+                display: inline-block;
+                border: 5px outset #a25a27;
+                border-radius: 2px;
+            }
+            #playground{
+                width: 79%;
+                display: inline-block;
+                background-color: antiquewhite;
+            }
+            #blackBench{
+                float: left;
+            }
+            .piece.benched{
+                margin-top: 2%;
+            }
+            #announcement{
+                width: 80vw;
+                margin: auto;
+                background-color: #fff;
+                height: 40vh;
+                position: absolute;
+                top: 30%;
+                left: 10%;
+                border: 2px groove #fccb34;
+                text-align: center;
+                padding-top: 20vh;
+                display: none;
+            }
+         </style>
+         <script>
+            function allowDrop(ev) {//second event int the sequence
+                ev.preventDefault();//allow the drop to occur
+            }
+
+            function drag(ev) {//the first event shot off when an element is draged
+                piece = Piece.pieces[ev.target.id];
+                player = angular.element(document.getElementById('game')).scope().turnkeeper.currentPlayer;
+                if(player.isMyTurn() && player.isMyColor(piece.color)){//if its the current players turn and he is moving his color
+                    ev.dataTransfer.setData("text", ev.target.id);//use event to find the piece object being moved
+                    piece.highlightMoves();//find and highlight valid moves
+                    if (piece.king){ 
+                        path = piece.validMove(piece.cell());
+                        if (path) piece.move(piece.cell(), path);
+                        setTimeout(function(){piece.removeHighlights()}, 1000);
+                    }
+                }
+            }
+
+            function drop(ev) {
+                ev.preventDefault();
+                var data = ev.dataTransfer.getData("text");
+                ev.target.appendChild(document.getElementById(data));
+            }
+
+        </script>
     </head>
     <body>
-        <div>TODO write content</div>
+        <div id="game" ng-app="checkers" ng-controller="gameController">
+            <div id="topHeader">
+                <p id="blackHeader" class="header">Black: {{scorekeeper.blackScore}}</p>
+                <p id="clock"></p>
+                <p id="redHeader" class="header">{{scorekeeper.redScore}} :Red</p>
+            </div>
+            <div id="blackBench" class="bench"></div>
+            <div id="playground">
+                <div id="board">
+                        {{board.reset()}}
+                </div>
+            </div>
+            <div id="redBench" class="bench"></div>
+            <div id="announcement">{{scorekeeper.winner}} Wins!</div>
+        </div>
+      <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+      <script>
+          function Clock(element, seconds){
+              if (seconds === undefined) {
+                    seconds = 0; // default value for seconds
+              }
+              this.seconds = seconds;
+              this.counter = false;
+              this.element = element;
+              var self = this;
+              
+              var tick = function(){
+                  self.seconds++;
+                  self.show();
+              }
+              
+              this.show = function(){
+                  $(self.element).text(self.getTimestamp(self.seconds));
+              }
+              
+              this.start = function(){
+                  self.show();
+                  self.counter = setInterval(function(){tick()}, 1000);
+              }
+              
+              this.stop = function(){
+                  if (self.counter){
+                      clearInterval(self.counter);
+                      self.counter = false;
+                  }
+              }
+              
+              this.getTimestamp = function(seconds){ 
+                  String.prototype.toHHMMSS = function () {
+                        var sec_num = parseInt(this, 10); // don't forget the second param
+                        var hours   = Math.floor(sec_num / 3600);
+                        var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+                        var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+                        if (hours   < 10) {hours   = "0"+hours;}
+                        if (minutes < 10) {minutes = "0"+minutes;}
+                        if (seconds < 10) {seconds = "0"+seconds;}
+                        return minutes+':'+seconds;
+                  }
+                  s = "" + seconds;
+                  return s.toHHMMSS();
+              }
+              
+          }
+          Clock.clock = false;
+          
+          function Bench(color, element){
+              this.color = color;
+              this.pieces = [];
+              this.element = element;
+              var self = this;
+              
+              this.add = function(piece){
+                  if(piece.color === self.color){
+                      this.pieces.push(piece);
+                      $(piece.element).addClass("benched");
+                      this.element.append(piece.element);
+                  }
+              }
+                      
+          }
+          Bench.benches = {};
+          Bench.addBench = function(color, element){
+              b = new Bench(color, element);
+              Bench.benches[color] = b;
+              return b;
+          }
+          
+          function Cell(r, c, i, e){
+              this.id = Cell.cellCount;
+              this.row = r; 
+              this.col = c;
+              this.inplay = i;
+              this.element = e;
+              this.occupied = false;
+              this.piece = false;
+              var self = this;
+              
+              this.accessible = function(){//whether or not the cell is accessible
+                  a = false;
+                  if (self.inplay && !self.occupied) a = true;  //cells are accessible is they are allowed for play and empty
+                  return a;
+              }
+              this.oppositeOccupied = function(piece){//whether or not the cell is occupied by a piece of the opposing side
+                  if (!self.occupied) return false;//if empty return false
+                  else return (!(piece.color === self.piece.color));
+              }
+              
+          }
+          Cell.cellCount = 0;
+          Cell.currentRow = 0;
+          Cell.currentCol = 0;
+          Cell.cells = [];
+          Cell.prototype.addCell = function(inplay, element){ //public function to add cells
+              Cell.currentRow = Math.floor(Cell.cellCount/8); //the current row is the cell count divided by 8
+              Cell.currentCol = Cell.cellCount % 8; // the current column is the cell count modulo 8
+              c = new Cell(Cell.currentRow, Cell.currentCol, inplay, element); //create a new cell
+              Cell.cells.push(c); // add it to the array of cells
+              Cell.cellCount++; //increment the cell count
+          }
+          Cell.prototype.checkAccessible = function(ev){
+              cellId = ev.target.id;
+              cell = Cell.cells[cellId];
+              piece = Piece.pieces[ev.dataTransfer.getData("text")];
+              piece.removeHighlights();
+              if (cell.accessible()){
+                   path = piece.validMove(cell);
+                   if (path){
+                        ev.preventDefault();
+                        piece.move(Cell.cells[cellId], path);
+                    }
+              }
+              
+          }
+          Cell.prototype.findByPosition = function(row, column){
+              return Cell.cells[(8 * row) + column];
+          }
+          
+          function Piece(id, cell, color, elem){
+              this.id = id;
+              this.cellIndex = cell;
+              this.color = color; //black = true
+              this.element = elem;
+              this.inplay = true;
+              this.king = false;//TESTING
+              this.bench = Bench.benches[color];
+              this.highlightEnd = [];
+              this.highlightIntermediate = [];
+              this.highlightAttacked = [];
+              this.validPaths = [];
+              var self = this;
+              
+              
+              this.move = function(cell, path){
+                  angular.element(document.getElementById('game')).scope().scorekeeper.updateScore(self, path);
+                  angular.element(document.getElementById('game')).scope().$digest();
+                  if(path.taken){
+                       this.attack(path)
+                  }
+                  this.validPaths = [];
+                  
+                  $(cell.element).append(self.element);//graphically move the html element
+                  Cell.cells[this.cellIndex].occupied = false; //change the old cell to unoccupied
+                  Cell.cells[this.cellIndex].piece = false; //change the old cell piece to false (empty)
+                  Cell.cells[cell.id].occupied = true; // change the new cell to occupied
+                  Cell.cells[cell.id].piece = self; // change the old cell piece to this
+                  this.cellIndex = cell.id; //update the cell index to the new cell
+                  if(this.color){//king me if you must
+                      if((self.cell().row === 7) && (!self.king)) self.kingMe(); 
+                  }else{
+                      if((self.cell().row === 0) && (!self.king)) self.kingMe(); 
+                  }
+                  angular.element(document.getElementById('game')).scope().turnkeeper.takeTurns();
+              }
+              
+              this.validMove = function(cell){
+                  v = false;
+                  validPaths = this.validPaths
+                  for(p in validPaths){
+                      if(validPaths[p].endCell.id === cell.id){ v = validPaths[p]}
+                  }
+                  return v;
+              }
+              
+              this.kingMe = function(){
+                  self.king = true;
+                  $(self.element).addClass("king");
+              }
+              
+              this.attack = function(path){
+                 
+                  path.taken.forEach(function(t){
+                      t.destroy();
+                  });
+              }
+              
+              this.destroy = function(){
+                  self.inplay = false;
+                  self.cell().piece = false;
+                  self.cell().occupied = false;
+                  //append element to bench here
+                  self.bench.add(self);
+                 // $(self.element).remove();
+              }
+              
+              this.highlightMoves = function(){//function called in the drag event to find and highlight the available moves
+                  validPaths = PathFinder.findPath(self);//find all the available valid moves
+                  if (validPaths.length > 0) this.validPaths = validPaths;
+                  for(p in validPaths){
+                          
+                          endCell = validPaths[p].endCell.id;
+                          steps = (validPaths[p].intermediateCells.length > 0)? validPaths[p].intermediateCells.map(function(cell){return cell.id}) : [];
+                          attackSteps = (validPaths[p].attackedCells.length > 0)? validPaths[p].attackedCells.map(function(cell){return cell.id}) : [];
+                         /* if (!steps) steps = [];
+                          if (!attackSteps) attackSteps = [];*/
+                          $("#"+endCell).addClass("validEnd");
+                          steps.forEach(function(cell){
+                              $("#"+cell).addClass("validStep");
+                          });
+                          attackSteps.forEach(function(cell){
+                              $("#"+cell).addClass("validAttack");
+                          });
+                          this.highlightEnd.push(endCell);
+                          this.highlightIntermediate = this.highlightIntermediate.concat(steps);
+                          this.highlightAttacked = this.highlightAttacked.concat(attackSteps);
+                      //}
+                  }
+              }
+              
+              this.removeHighlights = function(){
+                  for (x in this.highlightEnd){
+                      i = this.highlightEnd[x];
+                      $("#"+i).removeClass("validEnd");
+                  }
+                  this.highlightIntermediate.forEach(function(cell){
+                        $("#"+cell).removeClass("validStep");
+                  });
+                  this.highlightAttacked.forEach(function(cell){
+                        $("#"+cell).removeClass("validAttack");
+                  });
+                  this.highlightEnd = [];
+                  this.highlightIntermediate = [];
+                  this.highlightAttacked = [];
+              }
+              
+              this.cell = function(){return Cell.cells[self.cellIndex];}
+              
+          }
+          Piece.pieceCount = 0;
+          Piece.pieces = {};
+          Piece.redPieces = {};
+          Piece.blackPieces = {};
+          Piece.addPiece = function(id, cell, color, element){
+              p = new Piece(id, cell, color,element);
+              Cell.cells[cell].occupied = true;//set the cell to be occupied
+              Cell.cells[cell].piece = p; //set the cell piece to this
+              Piece.pieceCount++;
+              Piece.pieces[id] = p;
+              if (color){
+                  Piece.blackPieces[id] = p;
+              } else {
+                  Piece.redPieces[id] = p;
+              }
+          }
+          
+          function Path(endNode){//the paths available
+              this.startNode;
+              this.endNode = endNode;
+              this.startCell;
+              this.attackedCells = [];
+              this.intermediateCells = [];
+              this.taken = [];
+              this.endCell = endNode.cell;
+              this.hasJumps = false;
+              var self = this;
+              
+              var expandNode = function(node){
+                 if (node.parent === null) { self.startCell = node.cell; self.startNode = node; return;} //if we have reahed the top node stop recursion and set start cell
+                 if ((node.parent !== null) && (node.parent.parent !== null)) self.intermediateCells.push(node.parent.cell);//if there were at least 2 jumps
+                 if (Math.abs(node.cell.col - node.parent.cell.col) > 1){//if there was a jump
+                    self.hasJumps = true;
+                    directionCol = node.cell.col > node.parent.cell.col; //true is left-to-right
+                    directionRow = node.cell.row > node.parent.cell.row; //true is top-to-bottom
+                    attackedCol = (directionCol)? node.cell.col - 1 : node.cell.col + 1; //add or minus 2 based on direction
+                    attackedRow = (directionRow)? node.cell.row - 1 : node.cell.row + 1; //add or minus 2 based on direction
+                    attackedCell = Cell.prototype.findByPosition(attackedRow, attackedCol);
+                    self.taken.push(attackedCell.piece);// attacked pieces
+                    self.attackedCells.push(attackedCell);
+                }
+                 expandNode(node.parent);//recursively call algorithm
+              }
+              expandNode(self.endNode);
+          }
+          
+          function Node(piece, parent){
+                this.parent = parent;
+                this.goal = false;
+                this.piece = piece;
+                this.cell = piece.cell();
+                this.startCell = (!(parent))? this.cell : this.parent.startCell;
+                this.id = this.cell.id;
+                this.depth = (!(parent))? 0 : this.parent.depth + 1;
+                var self = this;
+                
+                this.isExplored = function(cell){//check against every already explored cell to chec kif this one is new 
+                    var exploredCells = self.findExplored([]);
+                    console.log(exploredCells);
+                    var notExplored = exploredCells.every(function(c){
+                        return (cell.id != c.id);
+                    });
+                    return !notExplored;
+                }
+                
+                this.findExplored = function(set){
+                    if (!(self.parent)) return set; //if first node, parent is null, return
+                    set.push(self.cell);
+                    return self.parent.findExplored(set);
+                }
+                
+                this.isStartCell = function(cell){
+                    return (cell.id === self.startCell.id);
+                }
+          }
+     
+          
+          var Scorekeeper = {
+              redScore: 0,
+              blackScore: 0,
+              updateScore: function(piece, path){
+                  score = (path.taken)? path.taken.length : 0;
+                  if (piece.color) Scorekeeper.blackScore += score;
+                  else Scorekeeper.redScore += score;
+                  alert("black: " + Scorekeeper.blackScore + " red: " + Scorekeeper.redScore);
+              }
+          }
+          
+          var PathFinder= {
+              //object responsible for finding the valid moves available to a piecce
+              
+              findPath: function(piece){
+                  var paths = [];
+                  if(piece.king){ //if its a king 
+                      paths = this.getPath(piece, PathFinder.getAdjacent).concat(this.getPath(piece, PathFinder.getAdjacent));
+                  }
+                  else{
+                      if (piece.color) paths = this.getPath(piece, PathFinder.fwdAdj);//if black calculate forwards
+                      else paths = this.getPath(piece, PathFinder.bckAdj);//if red calculate backwards
+                  }
+                  return this.validatePaths(paths);//only return valid paths
+              },
+              fwdAdj: function(cell){// function to check directly adjacent forward squares
+                      adjIndex = []; 
+                      col = cell.col;
+                      row = cell.row;
+                      i = cell.id;   
+                      if(row != 7){ //as long as its not the last rwo
+                            if (col != 7){//as long as its not the last column
+                                adjIndex.push(i + 9)
+                            }
+                            if (col != 0){//as long as its not the first column
+                                adjIndex.push(i + 7)
+                            }
+                      }
+                      return adjIndex;
+                  },
+                 bckAdj: function(cell){// function to check directly adjacent backward squares
+                      adjIndex = []; 
+                      col = cell.col;
+                      row = cell.row;
+                      i = cell.id;   
+                      if(row != 0){ //as long as its not the first row
+                            if (col != 7){//as long as its not the last column
+                               adjIndex.push(i - 7);
+                            }
+                            if (col != 0){//as long as its not the first column
+                              adjIndex.push(i - 9);
+                            }
+                      }
+                      return adjIndex;
+                  },
+              
+              getPath: function(piece, adjFunc){//calculate all the valid paths, 2nd var is a functionto calculate moves in the desired direction
+              goalPaths = []; //this will hold all valid move paths at the end of the function, if any
+              frontier = []; //data structure to allow depth-first search
+              startNode = new Node(piece, null);//create a node to start searching from
+              frontier.push(startNode); //put this startnode in the frontier
+              c = true; //var to tell us when to stop searching
+              while(c){
+                 if (frontier.length > 0){//as long as there are things in the frontier
+                    n = frontier.pop();//get the next
+                    moves = PathFinder.canMove(n, adjFunc);// if this node can move (given its piece and cell), get its available moves 
+                    if (!moves) c = false;//if there are no valid moves, exit
+                    for (move in moves){
+                        //we need fake pieces to make non-existent nodes
+                        fakePiece = new Piece(piece.id, moves[move].id, piece.color, piece.element);
+                        if (PathFinder.goalTest(n, moves[move], adjFunc)){//if goal node
+                            n.goal = true; //if we're at the end cell of this move  
+                            goalPaths.push(new Path(new Node(fakePiece, n))); //put the full move in paths
+                        } else { //if there are more jumps to go 
+                            frontier.push(new Node(fakePiece, n)); //put this node back in the frontier to continue searching
+                        }
+                    }
+                 } else c = false;
+                  
+              }
+                  return goalPaths;
+              },
+              
+              canMove: function(n, adjFunc){
+                  piece = n.piece;
+                  adjCells = adjFunc(piece.cell());
+                  if (adjCells.length === 0) return false; //if there are no adjacent cells the piece cannot move 
+                  moves = [];
+                  for(c in adjCells){
+                      cell = Cell.cells[adjCells[c]];
+                      if(!cell.occupied && (n.parent === null)) moves.push(cell); //CHANGED!!if the cell is empty add it to the available moves (for the first move)
+                      else if(cell.oppositeOccupied(piece)){//if there is a different color piece on this cell
+                          adjAdj = adjFunc(cell.piece.cell());
+                          directionCol = (piece.cell().col > cell.piece.cell().col); //get original column direction
+                          directionRow = (piece.cell().row > cell.piece.cell().row); //get original row direction
+                          adjAdj.forEach(function(cell){
+                              newDirectionCol = (piece.cell().col > Cell.cells[cell].col);//get new column direction
+                              newDirectionRow = (piece.cell().row > Cell.cells[cell].row);//get new row direction
+                              if (!Cell.cells[cell].occupied && (directionCol === newDirectionCol) && (directionRow === newDirectionRow)&& (piece.cell().row != Cell.cells[cell].row)
+                                      && (piece.cell().col != Cell.cells[cell].col) &&(piece.cell().col !== Cell.cells[cell].col) && 
+                                      (!n.isExplored(Cell.cells[cell]))) moves.push(Cell.cells[cell]);// every blank cell behind the opposite piece is added
+                              else if (n.piece.king && (!n.isExplored(Cell.cells[cell])) && n.isStartCell(Cell.cells[cell]) && (n.depth >= 2)) moves.push(Cell.cells[cell]);//allow full-circle move
+                          });
+                      }
+                  }
+                  return moves;
+              },
+              goalTest: function(node, targetCell, adjCheck){
+                  if ((!targetCell.occupied) && (node.parent === null) && (Math.abs(targetCell.col-node.cell.col)=== 1)) return true;//if this is blank, no jumps have been made and one move away from the initial piece it is a goal
+                  if (node.piece.king && node.isStartCell(targetCell) && (!node.isExplored(targetCell))) return true; //allow full circle move
+                  adjCells = adjCheck(targetCell);
+                  if ((adjCells.length === 0) && (node.parent !== null)) return true; //if there are no adjacent cells and the piece has already moved, it is a goal
+                  function checkAllUnoccupied(cell){//check whether a cell is empty
+                      return !Cell.cells[cell].occupied;
+                  }
+                  if (adjCells.every(checkAllUnoccupied)) return true; //if both adjacent cells at unoccupied this is a goal state
+                  function checkAllSame(cell){//check whether all cells are the same color
+                      return !Cell.cells[cell].oppositeOccupied(this); //this value is passed as the piece in the node
+                  }
+                  if (adjCells.every(checkAllSame, node.piece) && (node.parent !== null)) return true; //if both adjacent cells are the same color and the piece has moved, this is a goal state
+
+                  truth = [];
+                  for(c in adjCells){// check if another jump is impossible
+                      current = Cell.cells[adjCells[c]];
+                      if (current.oppositeOccupied(node.piece)){//if the cell is occupied by a piece of the opposite color
+                            adjAdj = adjCheck(current); //the adjacent cells of the adjacent cell
+                            if (adjAdj.every(function(cell){
+                                newCell = Cell.cells[cell];
+                                notAccessible = true;
+                                if (!newCell.occupied){
+                                    directionCol = current.col > newCell.col;
+                                    directionRow = current.row > newCell.row;
+                                    lastDirectionCol = targetCell.col > current.col;
+                                    lastDirectionRow = targetCell.row > current.row;
+                                    if ((directionCol === lastDirectionCol) && (directionRow === lastDirectionRow) &&
+                                            (targetCell.col != current.col) && (targetCell.row != current.row) && (!node.isExplored(newCell))) notAccessible = false;
+                                }else if (node.piece.king && (!node.isExplored(newCell)) && node.isStartCell(Cell.cells[cell]) && (node.depth >= 2)) notAccessible = false;//allow full-circle move
+                                return notAccessible;
+                            })) truth.push(true);//check if all the adjacent cells behid this adjacent cell are occupied
+                            else truth.push(false);
+                      }else truth.push(true);// if cell is occupied by the same color
+                  }
+                  if(truth.every(function(val){return val;})) return true;//if only trues in the truth array
+                  
+                  else return false; //else this is not a goal position
+              },
+              getBackPath: function(piece, adj){
+                  i = piece.cell().id;
+                  paths = [];
+                  for(x in adj){
+                      cell = Cell.cells[adj[x]];
+                      if ((adj[x] < i) && (!cell.occupied)) paths.push(new Path(i, [adj[x]]));//if the cell is infront of this one and is not occupied create a 1 step path
+                  }
+                  return paths;
+              }, //get the valid paths backward
+              getAdjacent: function(cell){//find the adjacent squares
+                  adjIndex = []; 
+                  col = cell.col;
+                  row = cell.row;
+                  i = cell.id;
+                  if(row != 0){ //as long as its not the first row
+                      if (col != 7){//as long as its not the last column
+                         adjIndex.push(i - 7);
+                      }
+                      if (col != 0){//as long as its not the first column
+                        adjIndex.push(i - 9);
+                      }
+                  }
+                  if(row != 7){ //as long as its not the last rwo
+                      if (col != 7){//as long as its not the last column
+                          adjIndex.push(i + 9)
+                      }
+                      if (col != 0){//as long as its not the first column
+                          adjIndex.push(i + 7)
+                      }
+                  }
+                  return adjIndex;
+              },
+              validatePaths: function(paths){
+                //if jumps are avalable, you must take one of them
+                withJumps = [];
+                hasSingles = false;
+                paths.forEach(function(path){
+                    if (path.hasJumps) withJumps.push(path);//if it has jumps add it to the array of those with jumps
+                    else hasSingles = true; //if not, indicate that there is at least one single
+                });
+                if (hasSingles && (withJumps.length > 0)) return withJumps;//if there are both singles and jumps return only the jumps
+                return paths; //otherwise, return the original array of paths
+              }
+          }
+          
+          function Player(color, name){
+            this.id = Player.playerCount;  
+            this.color = color;
+            this.name = name;
+            var self = this; 
+            
+            this.colorName = function(){
+                if(color) return "Black";
+                else return "Red";
+            }
+            
+            this.isMyTurn = function(){
+                pId = angular.element(document.getElementById('game')).scope().turnkeeper.currentPlayer.id;
+                return (pId === self.id);
+            }
+            
+            this.isMyColor = function(color){
+                return (color === self.color);
+            }
+          }
+          Player.players = [];
+          Player.playerCount = 0;
+          Player.prototype.add = function(color, name){
+              if (name === undefined){
+                  name = "Player " + (Player.playerCount + 1); 
+              }
+              p = new Player(color, name);
+              Player.players.push(p);
+              Player.playerCount++;
+              return p;
+          }
+          
+          
+      </script>
+      <script>
+          var myApp = angular.module("checkers", []). //angular app declaration
+                  controller("gameController", function($scope, $interval){//controller
+                     $scope.board = {
+                         element: document.getElementById("board"),
+                         getWhiteCell: function(){//produce white board cells
+                             id = Cell.cellCount;
+                             e = $("<div id='" + id + "' class='tile' ondrop='Cell.prototype.checkAccessible(event)' ondragover='allowDrop(event)'></div>");
+                             Cell.prototype.addCell(false, e);
+                             return e;
+                         },
+                         getBlackCell: function(){//product black board cells
+                             id = Cell.cellCount;
+                             e = $("<div id='" + id + "' class='tile black' ondrop='Cell.prototype.checkAccessible(event)' ondragover='allowDrop(event)'></div>");
+                             Cell.prototype.addCell(true, e);
+                             return e;
+                         },
+                         
+                         buildBoard: function(){//create the game board
+                             var board = $scope.board.element;
+                             for(var i=0; i < 8; i++){
+                                 for(var j=0; j < 4; j++){
+                                    if ((i % 2) === 0){//for every odd row
+                                        $(board).append(this.getWhiteCell());
+                                        $(board).append(this.getBlackCell());         
+                                    } else { //for every even row
+                                        $(board).append(this.getBlackCell());
+                                        $(board).append(this.getWhiteCell());
+                                    }
+                                }
+                             }
+                         },
+                         
+                         getRedPiece: function(cell){
+                             id = "r" + cell;
+                             e = $("<div id='" + id + "' class='piece' draggable='true' ondragstart='drag(event)'></div>");
+                             Piece.addPiece(id, cell, false, e);
+                             return e;
+                         },
+                         getBlackPiece: function(cell){
+                             id = "b" + cell;
+                             e = $("<div id='" + id + "' class='piece black' draggable='true' ondragstart='drag(event)'></div>");
+                             Piece.addPiece(id, cell, true, e);
+                             return e;
+                         },
+                         setPieces: function(){//put the pieces on the board
+                            for(var i =0; i < 24; i++){ //create black pieces
+                                if (Cell.cells[i].inplay){
+                                    e = this.getBlackPiece(i); //create a black piece and get the element
+                                    cell = Cell.cells[i].element; //get the board cell element
+                                    $(cell).append(e);
+                                }
+                            } 
+                            for(var i= 40; i < 64; i++){ //create red pieces
+                                if (Cell.cells[i].inplay){
+                                    e = this.getRedPiece(i); //create a black piece and get the element
+                                    cell = Cell.cells[i].element; //get the board cell element
+                                    $(cell).append(e);
+                                }
+                            } 
+                         },
+                         reset: function(){
+                             if(Cell.cellCount == 0){
+                             this.buildBoard();
+                             Bench.addBench(true, $("#blackBench"));// create the black bench
+                             Bench.addBench(false, $("#redBench"));// create the red bench
+                             this.setPieces();
+                             Player.prototype.add(true);
+                             Player.prototype.add(false);
+                             Clock.clock = new Clock($("#clock"));
+                             Clock.clock.start();
+                             $scope.turnkeeper.takeTurns();
+                            }
+                         }
+                         
+                     };
+                     
+                     $scope.scorekeeper = {
+                            redScore: 0,
+                            blackScore: 0,
+                            winner: false,
+                            updateScore: function(piece, path){
+                                var sk; 
+                                sk = $scope.scorekeeper;
+                                score = (path.taken)? path.taken.length : 0;
+                                if (piece.color) sk.blackScore += score;
+                                else sk.redScore += score;
+                                if ((sk.redScore >= 12) || (sk.blackScore >= 12)) sk.declare();
+                                         
+                            },
+                            declare: function(){
+                                var sk = $scope.scorekeeper;
+                                if (sk.redScore >= 12) sk.winner = "Red";
+                                else if (sk.blackScore >= 12) sk.winner = "Black";
+                                $("#announcement").css("display", "block");
+                            }
+                            
+                     };
+                     
+                     $scope.turnkeeper = {
+                         currentPlayer: false,
+                         currentTurn: 0,
+                         takeTurns: function(){
+                             tk = $scope.turnkeeper;
+                             tk.currentPlayer = Player.players[(tk.currentTurn % 2)];
+                             console.log("current turn:" + tk.currentTurn + " currentPlayer:");
+                             console.log(tk.currentPlayer);
+                             tk.currentTurn++;
+                         },
+                         turnMessage: function(){
+                             tk = $scope.turnkeeper;
+                             return tk.currentPlayer.name + "'s (" + tk.currentPlayer.colorName +") Turn";
+                         }
+                     }
+   
+                  });
+          
+      </script>
     </body>
 </html>
