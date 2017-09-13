@@ -14,7 +14,7 @@
             #board{
                 margin: auto;
                 width: 41vw;
-                height: 41vw;
+                height: 41.5vw;
                 border: 3px inset #333;
                 border-radius: 3px;
                 padding: 0;
@@ -85,7 +85,7 @@
             }
             #clock, .header, #announcement{
                 font-weight: bold;
-                font-size: 50px;
+                font-size: 22px;
                 margin-bottom: 5px;
                 margin-top: 5px;
             }
@@ -112,6 +112,9 @@
             #blackBench{
                 float: left;
             }
+            #redBench{
+                margin-left: -4px;
+            }
             .piece.benched{
                 margin-top: 2%;
             }
@@ -128,6 +131,28 @@
                 padding-top: 20vh;
                 display: none;
             }
+            @media (max-width: 810px){
+                #board{
+                    width: 41.3vw;
+                    height: 42vw;
+                }
+                .bench{
+                    width: 7%;
+                    height: 42vw;
+                }
+            }
+            @media (max-width: 660px){
+                #board{
+                    width: 41.6vw;
+                }
+            }
+            @media (max-width: 500px){
+                #board{
+                    width: 42vw;
+                    height: 43vw;
+                }
+            }
+            
          </style>
          <script>
             function allowDrop(ev) {//second event int the sequence
