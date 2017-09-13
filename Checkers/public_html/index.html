@@ -343,13 +343,13 @@
                        this.attack(path)
                   }
                   this.validPaths = [];
-                  
                   $(cell.element).append(self.element);//graphically move the html element
                   Cell.cells[this.cellIndex].occupied = false; //change the old cell to unoccupied
                   Cell.cells[this.cellIndex].piece = false; //change the old cell piece to false (empty)
                   Cell.cells[cell.id].occupied = true; // change the new cell to occupied
                   Cell.cells[cell.id].piece = self; // change the old cell piece to this
                   this.cellIndex = cell.id; //update the cell index to the new cell
+                  Stereo.playStep();
                   if(this.color){//king me if you must
                       if((self.cell().row === 7) && (!self.king)) self.kingMe(); 
                   }else{
@@ -370,12 +370,14 @@
               this.kingMe = function(){
                   self.king = true;
                   $(self.element).addClass("king");
+                  Stereo.playKing();
               }
               
               this.attack = function(path){
                  
                   path.taken.forEach(function(t){
                       t.destroy();
+                      Stereo.playCapture();
                   });
               }
               
@@ -507,7 +509,43 @@
                 }
           }
      
-          
+          var Stereo = {
+              playCapture: function(){
+                  var audio;
+                  if (Stereo.checkSupport('audio/mp3;')){
+                       audio = new Audio('audio/capture.mp3');
+                  }
+                  else if (Stereo.checkSupport('audio/ogg;')){
+                      audio = new Audio('audio/capture.ogg');
+                  }
+                  audio.play();
+              },
+              playStep: function(){
+                  var audio;
+                  if (Stereo.checkSupport('audio/mp3;')){
+                       audio = new Audio('audio/step.mp3');
+                  }
+                  else if (Stereo.checkSupport('audio/ogg;')){
+                      audio = new Audio('audio/step.ogg');
+                  }
+                  audio.play();
+              },
+              playKing: function(){
+                  var audio;
+                  if (Stereo.checkSupport('audio/mp3;')){
+                       audio = new Audio('audio/king.mp3');
+                  }
+                  else if (Stereo.checkSupport('audio/ogg;')){
+                      audio = new Audio('audio/king.ogg');
+                  }
+                  audio.play();
+              },
+              checkSupport: function(type){
+                  var a = document.createElement('audio');
+                  return !!(a.canPlayType && a.canPlayType(type).replace(/no/, ''));
+              }
+              
+          }
           var Scorekeeper = {
               redScore: 0,
               blackScore: 0,
